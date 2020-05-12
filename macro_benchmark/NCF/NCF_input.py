@@ -164,7 +164,7 @@ def train_input_fn(features, labels, batch_size, user_negative, num_neg):
 	print("Data size=", len(data['user']))
 
 	dataset = tf.data.Dataset.from_tensor_slices(data)
-	dataset = dataset.shuffle(100)
+	dataset = dataset.shuffle(100000)
 		#.batch(batch_size)
 	return dataset
 
