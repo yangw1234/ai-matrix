@@ -62,7 +62,7 @@ def train(dataset, user_size, item_size):
 
         ############################### TFPark Train ################################
 
-        optimizer = TFOptimizer.from_train_op(model.optimizer, model.loss, sess=sess, dataset=dataset, metrics={"loss": model.loss})
+        optimizer = TFOptimizer.from_train_op(model.optimzer, model.loss, sess=sess, dataset=dataset, metrics={"loss": model.loss})
         optimizer.optimize(MaxEpoch(FLAGS.epochs))
 
         ############################### Training ####################################

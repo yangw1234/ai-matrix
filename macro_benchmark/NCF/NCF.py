@@ -2,20 +2,19 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import numpy as np
-import pandas as pd
+import numpy as np 
+import pandas as pd 
 
-import tensorflow as tf
+import tensorflow as tf 
 
 import sys
 import metrics
-from zoo.tfpark import ZooOptimizer
 
 
 class NCF(object):
-	def __init__(self, embed_size, user_size, item_size, lr,
-				optim, initializer, loss_func, activation_func,
-				regularizer_rate, dataset, topk, dropout, is_training):
+	def __init__(self, embed_size, user_size, item_size, lr, 
+				optim, initializer, loss_func, activation_func, 
+				regularizer_rate, iterator, topk, dropout, is_training):
 		"""
 		Important Arguments.
 
@@ -39,17 +38,16 @@ class NCF(object):
 		self.topk = topk
 		self.dropout = dropout
 		self.is_training = is_training
-		self.iterator = dataset
-
+		self.iterator = iterator
+		
 	def get_data(self):
 		""" Obtain the input data. """
-
-		# sample = self.iterator.getNext()
+		# sample = self.iterator.get_next()
 		sample = self.iterator.tensors
 
 		self.user = sample['user']
 		self.item = sample['item']
-		self.label = tf.cast(sample['label'], tf.float32)
+		self.label = tf.cast(sample['label'], tf.float32)		
 
 	def inference(self):
 		""" Initialize important settings """
@@ -72,20 +70,18 @@ class NCF(object):
 		if self.loss_func == 'cross_entropy':
 			# self.loss_func = lambda labels, logits: -tf.reduce_sum(
 			# 		(labels * tf.log(logits) + (
-			# 		tf.ones_like(labels, dtype=tf.float32) - labels) *
+			# 		tf.ones_like(labels, dtype=tf.float32) - labels) * 
 			# 		tf.log(tf.ones_like(logits, dtype=tf.float32) - logits)), 1)
 			self.loss_func = tf.nn.sigmoid_cross_entropy_with_logits
 
 		if self.optim == 'SGD':
-			self.optim = tf.train.GradientDescentOptimizer(self.lr,
+			self.optim = tf.train.GradientDescentOptimizer(self.lr, 
 									name='SGD')
 		elif self.optim == 'RMSProp':
-			self.optim = tf.train.RMSPropOptimizer(self.lr, decay=0.9,
+			self.optim = tf.train.RMSPropOptimizer(self.lr, decay=0.9, 
 							   momentum=0.0, name='RMSProp')
 		elif self.optim == 'Adam':
 			self.optim = tf.train.AdamOptimizer(self.lr, name='Adam')
-
-		self.optim = ZooOptimizer(self.optim)
 
 	def create_model(self):
 		""" Create model from scratch. """
@@ -173,14 +169,14 @@ class NCF(object):
 			reg = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
 			#reg_loss = tf.contrib.layers.apply_regularization(
 			#							self.regularizer, reg)
-
+			
 			self.loss = tf.reduce_mean(self.loss_func(
-						labels=self.label, logits=self.logits_dense, name='loss'))
+						labels=self.label, logits=self.logits_dense, name='loss')) 
 			# self.loss = tf.reduce_mean(self.loss_func(self.label, self.logits),
 			# 								name='loss')
 
 		with tf.name_scope("optimzation"):
-			self.optimizer = self.optim.minimize(self.loss)
+			self.optimzer = self.optim.minimize(self.loss)
 
 	def eval(self):
 		with tf.name_scope("evaluation"):
@@ -208,7 +204,7 @@ class NCF(object):
 		""" Train the model step by step. """
 		if self.is_training:
 			loss, optim, summaries = session.run(
-					[self.loss, self.optimizer, self.summary_op])
+					[self.loss, self.optimzer, self.summary_op])
 			self.writer.add_summary(summaries, global_step=step)
 		else:
 			indice, item = session.run([self.indice, self.item_replica])
