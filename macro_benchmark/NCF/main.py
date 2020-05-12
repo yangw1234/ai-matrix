@@ -62,52 +62,11 @@ def train(train_data, test_data, user_size, item_size):
 			sess.run(tf.global_variables_initializer())
 
 		############################### TFPark   ####################################
+		# todo implement HR, MRR and ndcg in graph
 		optimizer = TFOptimizer.from_train_op(model.optimzer, model.loss, sess=sess, dataset=dataset,
 											  metrics={"loss": model.loss})
 		optimizer.optimize(MaxEpoch(FLAGS.epochs))
-		
-		############################### Training ####################################
-		# count = 0
-		# total_time = 0
-		# for epoch in range(FLAGS.epochs):
-		# 	sess.run(model.iterator.make_initializer(train_data))
-		# 	model.is_training = True
-		# 	start_time = time.time()
-        #
-		# 	try:
-		# 		while True:
-		# 			model.step(sess, count)
-		# 			count += 1
-		# 	except tf.errors.OutOfRangeError:
-		# 		print("Epoch %d training " %epoch + "Took: " + time.strftime("%H: %M: %S",
-		# 							time.gmtime(time.time() - start_time)))
-		# 	total_time += time.time() - start_time
-		# ################################ EVALUATION ##################################
-		# 	sess.run(model.iterator.make_initializer(test_data))
-		# 	model.is_training = False
-		# 	start_time = time.time()
-		# 	HR, MRR, NDCG = [], [], []
-        #
-		# 	try:
-		# 		while True:
-		# 			prediction, label = model.step(sess, None)
-        #
-		# 			label = int(label[0])
-		# 			HR.append(metrics.hit(label, prediction))
-		# 			MRR.append(metrics.mrr(label, prediction))
-		# 			NDCG.append(metrics.ndcg(label, prediction))
-		# 	except tf.errors.OutOfRangeError:
-		# 		hr = np.array(HR).mean()
-		# 		mrr = np.array(MRR).mean()
-		# 		ndcg = np.array(NDCG).mean()
-		# 		print("Epoch %d testing  " %epoch + "Took: " + time.strftime("%H: %M: %S",
-		# 							time.gmtime(time.time() - start_time)))
-		# 		print("HR is %.3f, MRR is %.3f, NDCG is %.3f" %(hr, mrr, ndcg))
-		#
-		# print("Total Epochs: %d on training " %(epoch+1))
-		# print("Total recommendations: %d" % (count * FLAGS.batch_size))
-		# print("Approximate accelerator time in seconds is: %.2f" %total_time)
-		# print("Approximate accelerator performance in recommendations/second is: %.2f" % (float(count * FLAGS.batch_size)/float(total_time)))
+
 		################################## SAVE MODEL ################################
 		checkpoint_path = os.path.join(FLAGS.model_dir, "NCF.ckpt")
 		model.saver.save(sess, checkpoint_path)
