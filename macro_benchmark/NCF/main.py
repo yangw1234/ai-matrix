@@ -10,7 +10,9 @@ import tensorflow as tf
 import NCF_input
 import NCF
 import metrics
-
+from bigdl.optim.optimizer import MaxEpoch
+from zoo import init_nncontext
+from zoo.tfpark import TFDataset, TFOptimizer
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -42,11 +44,12 @@ def train(train_data, test_data, user_size, item_size):
 	with tf.Session(config=config) as sess:
 
 		############################### CREATE MODEL #############################
-		iterator = tf.data.Iterator.from_structure(train_data.output_types, 
-								train_data.output_shapes)
+		# iterator = tf.data.Iterator.from_structure(train_data.output_types,
+		# 						train_data.output_shapes)
+		dataset = TFDataset.from_tf_data_dataset(train_data, batch_size=FLAGS.batch_size, validation_dataset=test_data)
 		model = NCF.NCF(FLAGS.embedding_size, user_size, item_size,	FLAGS.lr, 
 				FLAGS.optim, FLAGS.initializer, FLAGS.loss_func, FLAGS.activation, 
-				FLAGS.regularizer, iterator, FLAGS.topK, FLAGS.dropout, is_training=True)
+				FLAGS.regularizer, dataset, FLAGS.topK, FLAGS.dropout, is_training=True)
 		model.build()
 		# train_init_op = iterator.make_initializer(train_data)
 
@@ -57,49 +60,54 @@ def train(train_data, test_data, user_size, item_size):
 		else:
 			print("Creating model with fresh parameters.")
 			sess.run(tf.global_variables_initializer())
+
+		############################### TFPark   ####################################
+		optimizer = TFOptimizer.from_train_op(model.optimzer, model.loss, sess=sess, dataset=dataset,
+											  metrics={"loss": model.loss})
+		optimizer.optimize(MaxEpoch(FLAGS.epochs))
 		
 		############################### Training ####################################
-		count = 0
-		total_time = 0
-		for epoch in range(FLAGS.epochs):
-			sess.run(model.iterator.make_initializer(train_data))	
-			model.is_training = True
-			start_time = time.time()
-
-			try:
-				while True:
-					model.step(sess, count)
-					count += 1
-			except tf.errors.OutOfRangeError:
-				print("Epoch %d training " %epoch + "Took: " + time.strftime("%H: %M: %S", 
-									time.gmtime(time.time() - start_time)))
-			total_time += time.time() - start_time
-		################################ EVALUATION ##################################
-			sess.run(model.iterator.make_initializer(test_data))
-			model.is_training = False
-			start_time = time.time()
-			HR, MRR, NDCG = [], [], []
-
-			try:
-				while True:
-					prediction, label = model.step(sess, None)
-
-					label = int(label[0])
-					HR.append(metrics.hit(label, prediction))
-					MRR.append(metrics.mrr(label, prediction))
-					NDCG.append(metrics.ndcg(label, prediction))
-			except tf.errors.OutOfRangeError:
-				hr = np.array(HR).mean()
-				mrr = np.array(MRR).mean()
-				ndcg = np.array(NDCG).mean()
-				print("Epoch %d testing  " %epoch + "Took: " + time.strftime("%H: %M: %S", 
-									time.gmtime(time.time() - start_time)))
-				print("HR is %.3f, MRR is %.3f, NDCG is %.3f" %(hr, mrr, ndcg))
-		
-		print("Total Epochs: %d on training " %(epoch+1))
-		print("Total recommendations: %d" % (count * FLAGS.batch_size))
-		print("Approximate accelerator time in seconds is: %.2f" %total_time)
-		print("Approximate accelerator performance in recommendations/second is: %.2f" % (float(count * FLAGS.batch_size)/float(total_time)))
+		# count = 0
+		# total_time = 0
+		# for epoch in range(FLAGS.epochs):
+		# 	sess.run(model.iterator.make_initializer(train_data))
+		# 	model.is_training = True
+		# 	start_time = time.time()
+        #
+		# 	try:
+		# 		while True:
+		# 			model.step(sess, count)
+		# 			count += 1
+		# 	except tf.errors.OutOfRangeError:
+		# 		print("Epoch %d training " %epoch + "Took: " + time.strftime("%H: %M: %S",
+		# 							time.gmtime(time.time() - start_time)))
+		# 	total_time += time.time() - start_time
+		# ################################ EVALUATION ##################################
+		# 	sess.run(model.iterator.make_initializer(test_data))
+		# 	model.is_training = False
+		# 	start_time = time.time()
+		# 	HR, MRR, NDCG = [], [], []
+        #
+		# 	try:
+		# 		while True:
+		# 			prediction, label = model.step(sess, None)
+        #
+		# 			label = int(label[0])
+		# 			HR.append(metrics.hit(label, prediction))
+		# 			MRR.append(metrics.mrr(label, prediction))
+		# 			NDCG.append(metrics.ndcg(label, prediction))
+		# 	except tf.errors.OutOfRangeError:
+		# 		hr = np.array(HR).mean()
+		# 		mrr = np.array(MRR).mean()
+		# 		ndcg = np.array(NDCG).mean()
+		# 		print("Epoch %d testing  " %epoch + "Took: " + time.strftime("%H: %M: %S",
+		# 							time.gmtime(time.time() - start_time)))
+		# 		print("HR is %.3f, MRR is %.3f, NDCG is %.3f" %(hr, mrr, ndcg))
+		#
+		# print("Total Epochs: %d on training " %(epoch+1))
+		# print("Total recommendations: %d" % (count * FLAGS.batch_size))
+		# print("Approximate accelerator time in seconds is: %.2f" %total_time)
+		# print("Approximate accelerator performance in recommendations/second is: %.2f" % (float(count * FLAGS.batch_size)/float(total_time)))
 		################################## SAVE MODEL ################################
 		checkpoint_path = os.path.join(FLAGS.model_dir, "NCF.ckpt")
 		model.saver.save(sess, checkpoint_path)
@@ -160,11 +168,13 @@ def infer(train_data, test_data, user_size, item_size):
 		print("Approximate accelerator performance in recommendations/second is: %.2f" % (float(count * FLAGS.batch_size)/float(total_time)))
 
 def main(argv=None):
- 
+
 	((train_features, train_labels), 
 	(test_features, test_labels), 
 	(user_size, item_size), 
 	(user_bought, user_negative)) = NCF_input.load_data(FLAGS.negative_num)
+
+	sc = init_nncontext()
 
 	train_data = NCF_input.train_input_fn(train_features, train_labels,
 						FLAGS.batch_size, user_negative, FLAGS.negative_num)
