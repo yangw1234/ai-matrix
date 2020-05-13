@@ -36,8 +36,7 @@ def load_data(negative_num):
 			(6040, 3706),  #user size =6040, item_size=3706
 			(user_bought, user_negative))
 
-	full_data = pd.read_csv(
-		DATA_DIR, sep='::', header=None, names=COLUMN_NAMES, 
+	full_data = pd.read_csv(DATA_DIR, sep='::', header=None, names=COLUMN_NAMES,
 		usecols=[0,1], dtype={0: np.int32, 1: np.int32}, engine='python')
 	
 	#forcing the index begining from 0.
@@ -159,10 +158,14 @@ def train_input_fn(features, labels, batch_size, user_negative, num_neg):
 	 
 	data = np.load(data_path).item()
 	print("Loading training data finished!")
+	data['user'] = data['user']
+	data['item'] = data['item']
+	data['label'] = data['label']
 	print("Data size=", len(data['user']))
-	dataset = tf.data.Dataset.from_tensor_slices(data)
-	dataset = dataset.shuffle(100000).batch(batch_size)
 
+	dataset = tf.data.Dataset.from_tensor_slices(data)
+	dataset = dataset.shuffle(100000)
+		#.batch(batch_size)
 	return dataset
 
 def eval_input_fn(features, labels, batch_size, user_negative, test_neg):
@@ -173,9 +176,15 @@ def eval_input_fn(features, labels, batch_size, user_negative, test_neg):
 	
 	data = np.load(data_path).item()
 	print("Loading testing data finished!")
+	data['user'] = data['user']
+	data['item'] = data['item']
+	data['label'] = data['label']
+	data['label'] = np.equal(data["label"], data["item"]).astype(np.int32)
 	print("Data size=", len(data['user']) )
+
+
 	dataset = tf.data.Dataset.from_tensor_slices(data)
-	dataset = dataset.batch(test_neg+1) 
+	# dataset = dataset.batch(test_neg+1)
 	# TODO
 	#dataset = dataset.batch(batch_size)
 

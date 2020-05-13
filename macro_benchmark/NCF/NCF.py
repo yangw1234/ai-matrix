@@ -9,6 +9,7 @@ import tensorflow as tf
 
 import sys
 import metrics
+from zoo.tfpark import ZooOptimizer
 
 
 class NCF(object):
@@ -42,7 +43,8 @@ class NCF(object):
 		
 	def get_data(self):
 		""" Obtain the input data. """
-		sample = self.iterator.get_next()
+		# sample = self.iterator.get_next()
+		sample = self.iterator.tensors
 
 		self.user = sample['user']
 		self.item = sample['item']
@@ -81,6 +83,8 @@ class NCF(object):
 							   momentum=0.0, name='RMSProp')
 		elif self.optim == 'Adam':
 			self.optim = tf.train.AdamOptimizer(self.lr, name='Adam')
+
+		self.optim = ZooOptimizer(self.optim)
 
 	def create_model(self):
 		""" Create model from scratch. """
